@@ -1,0 +1,189 @@
+---
+title: "Sim fit results"
+author: "John Flournoy"
+date: "3/13/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rstan)
+library(tidybayes)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+
+knitr::read_chunk('sim_data.R')
+```
+
+```{r}
+fit_files <- sprintf('fit%02d.csv', 4:7)
+gend <- rstan::read_stan_csv('sim.csv')
+```
+
+# Generate the data
+
+```{r generate_data, eval = FALSE}
+```
+
+# Fits to simulated data
+
+Eight simulated data sets were used to fit the mlmed example (one chain each).  Two data sets timed out (max wall time was 2 days). A few had divergent transitions, and treedepth warnings.
+
+1. Timeout
+2. Timeout
+3. 3/1000 divergent transitions
+4. 1/1000 maximum treedepth (15)
+5. No issues
+6. No issues
+7. No issues
+8. 2/1000 divergent transitions; split R-hat > 1.1 warnings for 2 parameters
+
+# Example fit
+
+## ROI random effects
+
+```{r}
+params <- tidybayes::gather_draws(gend, `(.*_(a|b|cp|dy|dm|ty|tm).*|(a|b|cp|dy|dm|ty|tm))`, regex = TRUE)
+cor_params <- tidybayes::gather_draws(gend, `.*Omega.*`, regex = TRUE)
+tau_params <- tidybayes::gather_draws(gend, `.*Tau.*`, regex = TRUE)
+
+fit <- rstan::read_stan_csv(fit_files[[1]])
+fitnum <- as.numeric(gsub('fit(\\d{2}).csv', '\\1', fit_files[[1]]))
+
+params_from_sim <- tidybayes::gather_draws(fit, `(.*_(a|b|cp|dy|dm|ty|tm).*|(a|b|cp|dy|dm|ty|tm))`, regex = TRUE)
+
+cor_params_from_sim <- tidybayes::gather_draws(fit, `.*Omega.*`, regex = TRUE)
+tau_params_from_sim <- tidybayes::gather_draws(fit, `.*Tau.*`, regex = TRUE)
+
+v_pars <- params_from_sim %>% group_by(.variable) %>%
+  summarize(mean(.value)) %>%
+  left_join(params[params$.iteration == fitnum,]) %>%
+  filter(grepl('v_', .variable)) %>%
+  extract(.variable, c('var', 'var2', 'idx'), regex = '(v_)(.*)\\.(.*)')
+```
+
+```{r}
+v_pars %>%
+  ggplot(aes(x = .value, y = `mean(.value)`)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  facet_wrap(~var2, scales = 'free') +
+  geom_abline(intercept = 0, slope = 1)
+```
+
+## ID random effects
+
+```{r}
+  params_from_sim %>% group_by(.variable) %>%
+    summarize(mean(.value)) %>%
+    left_join(params[params$.iteration == fitnum,]) %>%
+    filter(grepl('^u_', .variable)) %>%
+    extract(.variable, c('var', 'var2', 'idx'), regex = '(u_)(.*)\\.(.*)') %>%
+    ggplot(aes(x = .value, y = `mean(.value)`)) +
+    geom_point() +
+    geom_smooth(method = 'lm') +
+    facet_wrap(~var2, scales = 'free') +
+    geom_abline(intercept = 0, slope = 1)
+```
+
+## Population parameters
+
+```{r}
+params_from_sim %>% group_by(.variable) %>%
+  summarize(mean(.value)) %>%
+  left_join(params[params$.iteration == fitnum,]) %>%
+  filter(!grepl('^(v|u|tau)_', .variable)) %>%
+  ggplot(aes(x = .value, y = `mean(.value)`)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+```
+
+## RE Variances
+
+```{r}
+params_from_sim %>% group_by(.variable) %>%
+  summarize(mean(.value)) %>%
+  left_join(params[params$.iteration == fitnum,]) %>%
+  filter(grepl('tau', .variable)) %>%
+  ggplot(aes(x = .value, y = `mean(.value)`)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+```
+
+# All fits to simulated data
+
+Plots have generating value on the X axis, and sample medians, along with 95% credible intervals, on the Y axis.
+
+```{r}
+#https://tbradley1013.github.io/2018/10/01/calculating-quantiles-for-groups-with-dplyr-summarize-and-purrr-partial/
+p <- c(.025, .5, .975)
+p_names <- map_chr(p, ~paste0(.x*100, "%"))
+
+p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) %>% 
+  set_names(nm = p_names)
+
+simfitpars_ <- lapply(fit_files, function(fit_file){
+  fit <- rstan::read_stan_csv(fit_file)
+  fitnum <- as.numeric(gsub('fit(\\d{2}).csv', '\\1', fit_file))
+  
+  params_from_sim <- tidybayes::gather_draws(fit,
+                                             `(.*_(a|b|cp|dy|dm|ty|tm).*|(a|b|cp|dy|dm|ty|tm)|.*Tau.*)`, 
+                                             regex = TRUE) %>%
+    group_by(.variable) %>%
+    summarize_at(.vars = vars(.value), .funs = p_funs) %>%
+    mutate(.iteration = fitnum)
+  return(params_from_sim)
+})
+
+simfitpars <- bind_rows(simfitpars_)
+
+gen_and_simfit_pars <- left_join(simfitpars, params, by = c('.variable', '.iteration'))
+```
+
+## ROI-varrying parametrs (V)
+
+```{r fig.width=12, fig.height=12}
+gen_and_simfit_pars %>%
+  filter(grepl('v_', .variable)) %>%
+  extract(.variable, c('var', 'var2', 'idx'), regex = '(v_)(.*)\\.(.*)') %>%
+  ggplot(aes(x = .value, y = `50%`)) +
+  geom_segment(aes(y = `2.5%`, yend = `97.5%`, xend = .value), alpha = .5) + 
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  facet_wrap(.iteration~var2, scales = 'free', ncol = 7) +
+  geom_abline(intercept = 0, slope = 1) + theme_minimal()
+```
+
+## ID-varrying parametrs (U)
+
+```{r fig.width=12, fig.height=12}
+gen_and_simfit_pars %>%
+  filter(grepl('^u_', .variable)) %>%
+  extract(.variable, c('var', 'var2', 'idx'), regex = '(u_)(.*)\\.(.*)') %>%
+  ggplot(aes(x = .value, y = `50%`)) +
+  geom_segment(aes(y = `2.5%`, yend = `97.5%`, xend = .value), alpha = .5) + 
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  facet_wrap(.iteration~var2, scales = 'free', ncol = 7) +
+  geom_abline(intercept = 0, slope = 1) + theme_minimal()
+```
+
+## RE Variance parameters
+
+```{r fig.width=10, fig.height=5}
+gen_and_simfit_pars %>%
+  filter(grepl('tau', .variable)) %>%
+  extract(.variable, c('var', 'group', 'par'), regex = '(tau)_(.*)_(.*)') %>%
+  ggplot(aes(x = .value, y = `50%`)) +
+  geom_abline(intercept = 0, slope = 1, alpha = .5) + 
+  geom_segment(aes(y = `2.5%`, yend = `97.5%`, xend = .value), alpha = .5) +
+  geom_point() +
+  facet_wrap(group~par, scales = 'free', ncol = 7) +
+  theme_minimal()
+```
