@@ -113,14 +113,14 @@ model {
     gammas ~ normal(0, prior_bs);
     ybeta ~ normal(0, prior_ybeta);
     mbeta ~ normal(0, prior_mbeta);
-    sigma_y ~ exponential(prior_sigmas);
-    sigma_m ~ exponential(prior_sigmas);
+    sigma_y ~ weibull(2, prior_sigmas);
+    sigma_m ~ weibull(2, prior_sigmas);
     L_Omega_id ~ lkj_corr_cholesky(prior_id_lkj_shape);
     L_Omega_roi ~ lkj_corr_cholesky(prior_roi_lkj_shape);
 
     // Allow vectorized sampling of varying effects via stdzd z_U, z_V
     to_vector(z_U) ~ normal(0, 1);
-    to_vector(z_V) ~ normal(0, 1);//shardable over K rois
+    to_vector(z_V) ~ normal(0, 1);
 
     if(SIMULATE == 0){
       // Regressions

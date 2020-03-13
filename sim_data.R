@@ -25,7 +25,7 @@ to_fit_data$SIMULATE <- 0
 to_fit_data$prior_bs <- 1            #normal(0,1)
 to_fit_data$prior_mbeta <- 1         #normal(0,1)
 to_fit_data$prior_ybeta <- 1         #normal(0,1)
-to_fit_data$prior_sigmas <- 1        #exponential(0,1)
+to_fit_data$prior_sigmas <- 1        #weibull(2, 1);
 to_fit_data$prior_id_lkj_shape <- 1  #lkj_corr_cholesky(1)
 to_fit_data$prior_roi_lkj_shape <- 1 #lkj_corr_cholesky(1)
 to_fit_data$prior_id_taus <- 2.5     #cauchy(0,2.5)
