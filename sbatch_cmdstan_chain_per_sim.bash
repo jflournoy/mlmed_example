@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name=testsim
 #SBATCH -o %x_%A_%a.log
-#SBATCH --time=2-00:00:00
+#SBATCH --time=9-00:00:00
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
