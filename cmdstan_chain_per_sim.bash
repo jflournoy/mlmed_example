@@ -10,7 +10,8 @@ do
   
   time ./mlmed_example \
     sample \
-      algorithm=hmc engine=nuts max_depth=15 \
+      adapt delta=.99 \
+      algorithm=hmc engine=nuts max_depth=20 \
       num_samples=1000 num_warmup=1000 \
     random seed=6868 id="${i}" \
     output file=../../mlmed_example/fit"${nicei}".csv \
