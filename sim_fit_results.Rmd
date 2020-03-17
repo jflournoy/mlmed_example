@@ -21,7 +21,7 @@ knitr::read_chunk('sim_data.R')
 ```
 
 ```{r}
-fit_files <- sprintf('fit%02d.csv', 4:7)
+fit_files <- sprintf('fit%02d.csv', c(3,4:8))
 gend <- rstan::read_stan_csv('sim.csv')
 ```
 
@@ -34,14 +34,14 @@ gend <- rstan::read_stan_csv('sim.csv')
 
 Eight simulated data sets were used to fit the mlmed example (one chain each).  Two data sets timed out (max wall time was 2 days). A few had divergent transitions, and treedepth warnings.
 
-1. Timeout
-2. Timeout
-3. 3/1000 divergent transitions
-4. 1/1000 maximum treedepth (15)
-5. No issues
+1. 
+2. 
+3. No issues
+4. R-hat greater than 1.05: gammas[1], V[2,1], V[13,1], V[16,1], u_dy[4], u_dy[6], u_dy[9], u_dy[20], u_dy[23], dy
+5. R-hat greater than 1.05: L_Omega_roi[5,3], V[13,3]
 6. No issues
 7. No issues
-8. 2/1000 divergent transitions; split R-hat > 1.1 warnings for 2 parameters
+8. No issues
 
 # Example fit
 
