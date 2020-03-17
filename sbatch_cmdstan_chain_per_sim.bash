@@ -20,7 +20,7 @@ pushd $CMDSTANDIR
 nicei=$(printf "%02d" $id)
 echo $nicei
 
-time ./mlmed_example \
+srun -c 1 time ./mlmed_example \
   sample \
     adapt delta=.99 \
     algorithm=hmc engine=nuts max_depth=20 \
